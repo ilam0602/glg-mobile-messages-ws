@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@slack/web-api": "^7.0.4",
+    "dotenv": "^16.4.5",
+    "jsonwebtoken": "^9.0.2",
+    "node-fetch": "^3.3.2",
+    "request": "^2.88.2",
+    "ws": "^8.17.0"
+  }
+}

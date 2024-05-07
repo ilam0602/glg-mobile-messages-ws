@@ -1,0 +1,5 @@
+# .gitignore content to exclude .env file
+.env
+
+#exclude node modules
+node_modules/
