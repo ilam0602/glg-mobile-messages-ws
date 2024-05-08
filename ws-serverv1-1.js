@@ -117,8 +117,9 @@ wss.on("connection", function connection(ws) {
         text: `Kore Bot: ${responseMessage}`,
       });
     } catch (error) {
-      console.error("Error: ", error);
-      res.status(500).send({ error });
+      console.error("Error during WebSocket handling: ", error);
+      // You can send a message back to the client through WebSocket if necessary
+      ws.send(JSON.stringify({ error: "An error occurred." }));
     }
   }
   async function receiveMessages() {
