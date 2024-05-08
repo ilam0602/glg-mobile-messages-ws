@@ -171,6 +171,7 @@ wss.on("connection", function connection(ws) {
               for(let i = 0; i < curr_messages.length; i++){
                 connected_clients.get(ms_ts).send(`HISTORY: ${curr_messages[i]}`);
               }
+              connected_clients.get(ms_ts).send(`HISTORY DONE:`);
             const messages_to_store = result.messages
             .filter((msg) => msg.user !== "U070GNA54LB")
             .map((msg) => msg.text);
