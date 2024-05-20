@@ -40,6 +40,20 @@ async function fetchData(url, options) {
   }
 }
 
+async function getUID(ms_ts){
+  const result = await slackClient.conversations.replies({
+    channel: conversation_id,
+    ts: ms_ts,
+  });
+  const curr_messages = result.messages;
+  for (let i = 0; i < curr_messages.length; i++) {
+    if(curr_messages[i].text.includes('uid:')){
+      return curr_messages[i].text.substring(5,curr_messages[i].text.length);
+    }
+  }
+  return "";
+}
+
 // Fetch channel ID
 (async () => {
   try {
@@ -85,7 +99,7 @@ wss.on("connection", function connection(ws) {
     },
     clientSecret
   );
-  async function onConnect(ws) {
+  async function onConnect(ws,token) {
     const options = {
       method: "POST",
       headers: {
@@ -122,14 +136,17 @@ wss.on("connection", function connection(ws) {
       });
 
       ms_ts = result.ts;
-      console.log("res: ", responseMessage);
 
       connected_clients.set(ms_ts, ws);
       client_to_kore.set(ms_ts, true);
 
-      console.log(`Slack ms_ts: ${ms_ts},${sessionId}`);
       ws.send(`Slack ms_ts: ${ms_ts},${sessionId}`);
 
+      await slackClient.chat.postMessage({
+        channel: conversation_id,
+        thread_ts: ms_ts,
+        text: `uid: ${token['uid']}`,
+      });
       await slackClient.chat.postMessage({
         channel: conversation_id,
         thread_ts: ms_ts,
@@ -232,12 +249,20 @@ wss.on("connection", function connection(ws) {
     }
   }
 
-  async function sendMessage(message) {
+  async function sendMessage(message,token) {
     const messageText = message.toString();
     console.log("Received message: ", messageText);
     if (messageText.substring(0, 6) === "ms_ts:") {
       ms_ts = messageText.substring(6, messageText.length);
       connected_clients.set(ms_ts, ws);
+      let uidMsTs = await getUID(ms_ts);
+      if(uidMsTs != token['uid']){
+        console.log("uid not matched1111 ms_ts: ",ms_ts);
+        ms_ts = null;
+        return;
+      }else{
+        console.log("uid matched ms_ts: ",ms_ts);
+      }
       try {
         const result = await slackClient.conversations.replies({
           channel: conversation_id,
@@ -271,7 +296,7 @@ wss.on("connection", function connection(ws) {
         console.error(`Error retrieving replies: ${e}`);
       }
     } else if (messageText.substring(0, 11) == "new_thread:") {
-      onConnect(ws);
+      onConnect(ws,token);
     } else if (messageText == "archive:") {
       console.log("closing ticket now: ", ms_ts);
       const result = await slackClient.conversations.replies({
@@ -308,11 +333,8 @@ wss.on("connection", function connection(ws) {
     // Convert Buffer to string
     token = message['token'];
     const decodedToken = await admin.auth().verifyIdToken(token);
-    console.log('User authenticated', decodedToken);
-    
-    userName = decodedToken['name'];
 
-    sendMessage(message['message']);
+    sendMessage(message['message'],decodedToken);
   });
 
   ws.on("close", function close() {
