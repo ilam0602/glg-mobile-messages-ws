@@ -1,6 +1,8 @@
 const { WebClient } = require("@slack/web-api");
 const WebSocket = require("ws");
 const jwt = require("jsonwebtoken");
+const admin = require('firebase-admin');
+
 require("dotenv").config();
 
 let conversation_id = null;
@@ -18,6 +20,14 @@ const clientId = process.env.CLIENT_ID;
 const clientSecret = process.env.CLIENT_SECRET;
 
 
+
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+
+
+// Initialize Firebase Admin SDK
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 async function fetchData(url, options) {
   const fetch = (await import("node-fetch")).default;
@@ -63,6 +73,7 @@ const wss = new WebSocket.Server({ port: 8765 });
 wss.on("connection", function connection(ws) {
   let ms_ts = null;
   let stored_messages = [];
+  let userName = null;
   const bearerToken = jwt.sign(
     {
       sub: identity,
@@ -149,7 +160,9 @@ wss.on("connection", function connection(ws) {
               .slice(stored_messages.length)
               .forEach(async (message) => {
                 //TODO SEND MESSAGE TO SPECIFIC CLIENT
+                if(connected_clients.get(ms_ts) != null){
                 connected_clients.get(ms_ts).send(`From Slack: ${message}`);
+                }
                 stored_messages.push(message);
               });
           }
@@ -162,9 +175,11 @@ wss.on("connection", function connection(ws) {
   async function sendMessageToSlack(messageText,ms_ts,conversation_id){
     setTimeout(async () => {
       try {
+        console.log("userName =  ",userName);
         await slackClient.chat.postMessage({
           channel: conversation_id,
           thread_ts: ms_ts,
+          // text: `${userName ? userName : 'User'}: ${messageText}`, // Use the converted string here
           text: `User: ${messageText}`, // Use the converted string here
         });
       } catch (e) {
@@ -231,10 +246,20 @@ wss.on("connection", function connection(ws) {
         const curr_messages = result.messages.map((msg) => msg.text);
         console.log("curr_messages: ", curr_messages);
 
+        const transferMessage = 'I\'m sorry. I was unable to process your request. I will be transfering you to a live agent. One moment please.'
         for (let i = 0; i < curr_messages.length; i++) {
-          connected_clients.get(ms_ts).send(`HISTORY: ${curr_messages[i]}`);
+                if(connected_clients.get(ms_ts) != null){
+                  connected_clients.get(ms_ts).send(`HISTORY: ${curr_messages[i]}`);
+                }
+                if(curr_messages[i].includes(transferMessage)){
+                  console.log("found transfer message");
+                  client_to_kore.set(ms_ts, false);
+                }
         }
+
+                if(connected_clients.get(ms_ts) != null){
         connected_clients.get(ms_ts).send(`HISTORY DONE:`);
+                }
         const messages_to_store = result.messages
           .filter((msg) => msg.user !== "U070GNA54LB")
           .map((msg) => msg.text);
@@ -279,8 +304,15 @@ wss.on("connection", function connection(ws) {
 
   receiveMessages();
   ws.on("message", async function incoming(message) {
+    message = JSON.parse(message);
     // Convert Buffer to string
-    sendMessage(message);
+    token = message['token'];
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    console.log('User authenticated', decodedToken);
+    
+    userName = decodedToken['name'];
+
+    sendMessage(message['message']);
   });
 
   ws.on("close", function close() {
