@@ -228,8 +228,10 @@ wss.on("connection", function connection(ws) {
 
     try {
       const data = await fetchData(koreBotWebhookUrl, options);
-      console.log(data);
-      const responseMessage = data["data"][0]["val"];
+      console.log('data: ',data);
+      console.log('data[data]: ',data['data']);
+      console.log('data[data][0][val][text]', data['data'][0]['val']['text']);
+      let responseMessage = typeof data["data"][0]["val"] == 'string' ? data["data"][0]["val"] : data["data"][0]["val"]["text"];
 
       ws.send(`From Kore: ${responseMessage}`);
       const transferMessage = 'I\'m sorry. I was unable to process your request. I will be transfering you to a live agent. One moment please.'
