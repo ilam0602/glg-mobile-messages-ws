@@ -32,7 +32,7 @@ Fill in .env.Sample and rename to .env
 ### 4. Running the Application
 
 ```sh
-node ws-serverX-X.js
+node ws-server.js
 ```
 
 The server will be available at `ws://localhost:8765`.
@@ -41,7 +41,7 @@ The server will be available at `ws://localhost:8765`.
 
 ```
 .
-├── ws-serverX-X.js
+├── ws-server.js
 ├── package.json
 ├── package-lock.json
 ├── .env.Sample
