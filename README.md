@@ -85,8 +85,6 @@ Handles sending a message to the appropriate destination (Slack or Kore Bot) bas
 - **Close:** Cleans up when a WebSocket client disconnects.
 
 
-```
-
 ## Notes
 
 - Ensure the Firebase and Slack API keys are correctly set in the `.env` file.
