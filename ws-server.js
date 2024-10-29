@@ -18,6 +18,7 @@ const koreBotWebhookUrl = process.env.KORE_BOT_WEBHOOK_URL;
 const identity = process.env.IDENTITY;
 const clientId = process.env.CLIENT_ID;
 const clientSecret = process.env.CLIENT_SECRET;
+const botId = process.env.BOT_ID;
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
 
@@ -26,7 +27,6 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-//general function to fetch data from a URL
 async function fetchData(url, options) {
   const fetch = (await import("node-fetch")).default;
   try {
@@ -38,7 +38,6 @@ async function fetchData(url, options) {
   }
 }
 
-//get UID from slack conversation for auth
 async function getUID(ms_ts) {
   const result = await slackClient.conversations.replies({
     channel: conversation_id,
@@ -51,6 +50,34 @@ async function getUID(ms_ts) {
     }
   }
   return "";
+}
+
+async function getActiveChats(token) {
+  try {
+    // Verify the token and extract the uid
+    const uid = token.uid;
+
+    // Access the Firestore document in 'users-test' collection with the matching uid
+    const userDoc = await admin
+      .firestore()
+      .collection("users_test")
+      .doc(uid)
+      .get();
+
+    if (!userDoc.exists) {
+      console.log("No such document!");
+      return null;
+    } else {
+      const userData = userDoc.data();
+      const activeChats = userData["active-chats"]; // Assuming 'active-chats' is the field name
+
+      // Return the 'active-chats' field
+      return activeChats; // This should be a list of strings
+    }
+  } catch (error) {
+    console.error("Error fetching active chats:", error);
+    throw error;
+  }
 }
 
 // Fetch channel ID
@@ -81,12 +108,13 @@ async function getUID(ms_ts) {
   }
 })();
 
-const wss = new WebSocket.Server({ port: 8765 });
+const wss = new WebSocket.Server({ port: 8082 });
 
 wss.on("connection", function connection(ws) {
   let ms_ts = null;
   let stored_messages = [];
   let userName = null;
+  console.log("client connected");
   const bearerToken = jwt.sign(
     {
       sub: identity,
@@ -99,8 +127,65 @@ wss.on("connection", function connection(ws) {
     clientSecret
   );
 
-  //handle on connect event with Kore
   async function onConnect(ws, token) {
+    try {
+      // Fetch the user's active chats
+      let activeChats = await getActiveChats(token);
+  
+      if (!activeChats || activeChats.length === 0) {
+        console.log("No active chats found. Starting a new session.");
+        // Start a new session
+        await startNewSession(ws, token);
+        return;
+      }
+  
+      // Extract the most recent message timestamp from activeChats
+      let temp_ms_ts = activeChats[activeChats.length - 1].split(",")[0];
+      const messages = await slackClient.conversations.replies({
+        channel: conversation_id,
+        ts: temp_ms_ts,
+      });
+      let messagesFormat = messages.messages;
+      let lastTs = messagesFormat[messagesFormat.length - 1].ts;
+      console.log(
+        "last message ts: " + lastTs
+      );
+  
+      // Convert the timestamp to a Date object
+      const messageTimestamp = parseFloat(lastTs);
+      if (isNaN(messageTimestamp)) {
+        console.error("Invalid timestamp:", lastTs);
+        // Start a new session
+        await startNewSession(ws, token);
+        return;
+      }
+      const messageDate = new Date(messageTimestamp * 1000);
+  
+      const currentDate = new Date();
+      const differenceInMs = currentDate - messageDate;
+      const differenceInMinutes = differenceInMs / (1000 * 60);
+  
+      console.log('Difference in minutes:', differenceInMinutes);
+  
+      if (differenceInMinutes <= 14) {
+        // Continue with the existing conversation thread
+        ms_ts = temp_ms_ts;
+  
+        connected_clients.set(ms_ts, ws);
+        client_to_kore.set(ms_ts, true);
+  
+        // ws.send(`Slack ms_ts: ${ms_ts}`);
+      } else {
+        // Start a new session
+        await startNewSession(ws, token);
+      }
+    } catch (error) {
+      console.error("Error in onConnect:", error);
+      ws.send(JSON.stringify({ error: "An error occurred in onConnect." }));
+    }
+  }
+  
+  async function startNewSession(ws, token) {
     const options = {
       method: "POST",
       headers: {
@@ -119,87 +204,75 @@ wss.on("connection", function connection(ws) {
           id: identity,
         },
         to: {
-          id: "st-9553962c-19e6-5e9c-9a27-7001e994b776",
+          id: botId,
         },
       }),
     };
-
+  
     try {
-        //get response from kore
       const data = await fetchData(koreBotWebhookUrl, options);
-      const responseMessage = data["data"][0]["val"];
-      const sessionId = data["sessionId"];
-
-      //send response
-      ws.send(`From Kore: ${responseMessage}`);
-
-    //post session id to slack
-      const result = await slackClient.chat.postMessage({
-        channel: conversation_id,
-        text: `Kore Session ID: ${sessionId}`,
-      });
-
-      ms_ts = result.ts;
-
-      //set client list of ws
-      connected_clients.set(ms_ts, ws);
-      //set list that keeps track of client to kore
-      client_to_kore.set(ms_ts, true);
-
-      //send slack ms ts to client to sync
-      ws.send(`Slack ms_ts: ${ms_ts},${sessionId}`);
-
-      //post ms_ts to slack
-      await slackClient.chat.postMessage({
-        channel: conversation_id,
-        thread_ts: ms_ts,
-        text: `uid: ${token["uid"]}`,
-      });
-      //post kore response to slack
-      await slackClient.chat.postMessage({
-        channel: conversation_id,
-        thread_ts: ms_ts,
-        text: `Kore Bot: ${responseMessage}`,
-      });
+      if (data && data["data"] && data["data"].length > 0) {
+        const responseMessage = data["data"][0]["val"];
+        const sessionId = data["sessionId"];
+  
+        const result = await slackClient.chat.postMessage({
+          channel: conversation_id,
+          text: `Kore Session ID: ${sessionId}`,
+        });
+  
+        ms_ts = result.ts;
+  
+        connected_clients.set(ms_ts, ws);
+        client_to_kore.set(ms_ts, true);
+  
+        ws.send(`Slack ms_ts: ${ms_ts},${sessionId}`);
+        ws.send(`From Kore: ${responseMessage}`);
+  
+        await slackClient.chat.postMessage({
+          channel: conversation_id,
+          thread_ts: ms_ts,
+          text: `uid: ${token["uid"]}`,
+        });
+        await slackClient.chat.postMessage({
+          channel: conversation_id,
+          thread_ts: ms_ts,
+          text: `Kore Bot: ${responseMessage}`,
+        });
+      } else {
+        console.error("Invalid response from fetchData:", data);
+        ws.send(JSON.stringify({ error: "Failed to start a new session." }));
+      }
     } catch (error) {
       console.error("Error during WebSocket handling: ", error);
-      // You can send a message back to the client through WebSocket if necessary
-      ws.send(JSON.stringify({ error: "An error occurred." }));
+      ws.send(JSON.stringify({ error: "An error occurred." + error }));
     }
   }
+  
 
-  //function to receive messages from slack
   async function receiveMessages() {
     while (true) {
-        //check thread for new message every
-        //refTime miliseconds
-        var refTime = 10000;
-      await new Promise((resolve) => setTimeout(resolve, refTime));
+      await new Promise((resolve) => setTimeout(resolve, 10000));
       if (ms_ts !== null) {
         try {
-            //get replies from slack
           const result = await slackClient.conversations.replies({
             channel: conversation_id,
             ts: ms_ts,
           });
-          //filter out bot messages
           const curr_messages = result.messages
             .filter((msg) => msg.user !== "U070GNA54LB")
             .map((msg) => msg);
 
-
-
-        //if stored messages not the same as current messages
-        //store new messages and send to client
           if (stored_messages.length !== curr_messages.length) {
             curr_messages
               .slice(stored_messages.length)
               .forEach(async (message) => {
                 //TODO SEND MESSAGE TO SPECIFIC CLIENT
-                var info = await slackClient.users.info({user:message.user });
-                const pfpUrl = info.user['profile']['image_72'];
+                var info = await slackClient.users.info({ user: message.user });
+                const pfpUrl = info.user["profile"]["image_72"];
                 if (connected_clients.get(ms_ts) != null) {
-                  connected_clients.get(ms_ts).send(`From Slack: ${message.text}`);
+                  connected_clients
+                    .get(ms_ts)
+                    .send(`From Slack: ${message.text}`);
                   connected_clients.get(ms_ts).send(`PFP_URL: ${pfpUrl}`);
                 }
                 stored_messages.push(message);
@@ -211,7 +284,6 @@ wss.on("connection", function connection(ws) {
       }
     }
   }
-  //handle sending message to slack
   async function sendMessageToSlack(messageText, ms_ts, conversation_id) {
     setTimeout(async () => {
       try {
@@ -227,7 +299,7 @@ wss.on("connection", function connection(ws) {
       }
     }, 500);
   }
-//handle sending message to kore
+
   async function sendMessageToKore(message, ms_ts) {
     const options = {
       method: "POST",
@@ -244,7 +316,7 @@ wss.on("connection", function connection(ws) {
           id: identity,
         },
         to: {
-          id: "st-9553962c-19e6-5e9c-9a27-7001e994b776",
+          id: botId,
         },
       }),
     };
@@ -277,20 +349,14 @@ wss.on("connection", function connection(ws) {
       ws.send(JSON.stringify({ error: "An error occurred." }));
     }
   }
-  
-  //handle sending message to client
+
   async function sendMessage(message, token) {
     const messageText = message.toString();
     // console.log("Received message: ", messageText);
-
-    //if message from client is ms_ts
-    //it means client is trying to access existing thread
     if (messageText.substring(0, 6) === "ms_ts:") {
-        //authenticate
       ms_ts = messageText.substring(6, messageText.length);
       connected_clients.set(ms_ts, ws);
       let uidMsTs = await getUID(ms_ts);
-      //if not authenticated
       if (uidMsTs != token["uid"]) {
         console.log("uid not matched1111 ms_ts: ", ms_ts);
         ms_ts = null;
@@ -299,19 +365,20 @@ wss.on("connection", function connection(ws) {
         console.log("uid matched ms_ts: ", ms_ts);
       }
       try {
-        //get slack replies
         const result = await slackClient.conversations.replies({
           channel: conversation_id,
           ts: messageText.substring(6, messageText.length),
         });
+        console.log("curr messages: " + result.messages.ts);
         const curr_messages = result.messages.map((msg) => msg.text);
         const users = result.messages.map((msg) => msg.user);
+        const date = result.messages[0].thread_ts;
 
         const transferMessage =
           "I'm sorry. I was unable to process your request. I will be transfering you to a live agent. One moment please.";
-        var lastMesNotUser = '';
-        var userLastMes = '';
-        //send the history of the thread to client
+        var lastMesNotUser = "";
+        var userLastMes = "";
+        connected_clients.get(ms_ts).send(`HISTORY: DATE: ${date}`);
         for (let i = 0; i < curr_messages.length; i++) {
           if (connected_clients.get(ms_ts) != null) {
             connected_clients.get(ms_ts).send(`HISTORY: ${curr_messages[i]}`);
@@ -320,14 +387,13 @@ wss.on("connection", function connection(ws) {
             console.log("found transfer message");
             client_to_kore.set(ms_ts, false);
           }
-          if(!curr_messages[i].includes("User:")){
+          if (!curr_messages[i].includes("User:")) {
             lastMesNotUser = curr_messages[i];
             userLastMes = users[i];
           }
         }
-        //send pfp url to client
-        var info = await slackClient.users.info({user: userLastMes});
-        const pfpUrl = info.user['profile']['image_72'];
+        var info = await slackClient.users.info({ user: userLastMes });
+        const pfpUrl = info.user["profile"]["image_72"];
 
         if (connected_clients.get(ms_ts) != null) {
           connected_clients.get(ms_ts).send(`PFP_URL: ${pfpUrl}`);
@@ -343,10 +409,9 @@ wss.on("connection", function connection(ws) {
       } catch (e) {
         console.error(`Error retrieving replies: ${e}`);
       }
-      //if new thread start onConnect event with Kore
     } else if (messageText.substring(0, 11) == "new_thread:") {
+      //console.log('received new thread:');
       onConnect(ws, token);
-      //TODO: IMPLEMENT THIS
     } else if (messageText == "archive:") {
       console.log("closing ticket now: ", ms_ts);
       const result = await slackClient.conversations.replies({
@@ -368,12 +433,9 @@ wss.on("connection", function connection(ws) {
       //   });
       // }
     } else {
-        //if client no longer connected to kore
-        //send message to slack only
       if (client_to_kore.get(ms_ts) == false) {
         sendMessageToSlack(messageText, ms_ts, conversation_id);
-        
-      } else {// if client is connected to kore send to slack & kore
+      } else {
         sendMessageToSlack(messageText, ms_ts, conversation_id);
         sendMessageToKore(messageText, ms_ts);
       }
@@ -381,22 +443,21 @@ wss.on("connection", function connection(ws) {
   }
 
   receiveMessages();
-  //received message on ws
   ws.on("message", async function incoming(message) {
     message = JSON.parse(message);
+    //console.log(message);
     // Convert Buffer to string
     token = message["token"];
     const decodedToken = await admin.auth().verifyIdToken(token);
 
-    //call sendMessage to respond
     sendMessage(message["message"], decodedToken);
   });
 
   ws.on("close", function close() {
+    // console.log(connected_clients)
     console.log("Client disconnected");
     connected_clients.delete(ms_ts);
-
-    //clean up
+    // console.log(connected_clients);
     ms_ts = null;
     stored_messages = [];
   });
