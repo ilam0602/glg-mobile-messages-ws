@@ -4,3 +4,10 @@
 
 #exclude node modules
 node_modules/
+
+
+config.json
+
+helper/*.json
+
+snowflake.log
