@@ -11,3 +11,5 @@ config.json
 helper/*.json
 
 snowflake.log
+
+.DS_Store

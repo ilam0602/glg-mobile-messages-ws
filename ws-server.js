@@ -14,18 +14,8 @@ require("dotenv").config();
 
 const connected_clients = new Map();
 
-const sf_connection = snowflake.createConnection({
-  account: process.env.SNOWFLAKE_ACCOUNT,
-  username: process.env.SNOWFLAKE_USERNAME,
-  password: process.env.SNOWFLAKE_PASSWORD,
-  warehouse: process.env.SNOWFLAKE_WAREHOUSE,
-  database: 'DATA_ALPS',
-  schema: 'DATA_VAULT',
-  role: process.env.SNOWFLAKE_ROLE,
-});
 
-
-const wss = new WebSocket.Server({ port: 8082 });
+const wss = new WebSocket.Server({ port: 8080 });
 
 var sessions = new Map();
 
@@ -98,8 +88,9 @@ wss.on("connection", function connection(ws) {
       connected_clients.set(sid, ws);
       try {
         //get message history from snow flake
-        const messageHistory = await getMessageHistorySnowflake(sid,sf_connection);
+        const messageHistory = await getMessageHistorySnowflake(sid);
         //send message history to client
+        console.log(messageHistory);
         connected_clients.get(sid).send(
           `HISTORY: Kore Session ID: ${sid}`);
         connected_clients.get(sid).send(
@@ -120,19 +111,19 @@ wss.on("connection", function connection(ws) {
       await sleep(250);
       const introMessage = 'Hello, My name is Paige. How can I help you today?';
       //send intro message to snowflake
-      addMessageToSnowflake(introMessage,sid,decodedToken,false,sf_connection)
+      addMessageToSnowflake(introMessage,sid,decodedToken,false)
       connected_clients.get(sid).send('From Slack: ' + introMessage);
 
     } else {
       //add user message to snowflake
-      addMessageToSnowflake(message,sid,decodedToken,true,sf_connection)
+      addMessageToSnowflake(message,sid,decodedToken,true)
       //send message to gemini
       const response = await sendMessageToGemini(
         sessions.get(decodedToken.uid),
         messageText
       );
       //add bot message to snowflake
-      addMessageToSnowflake(response,sid,decodedToken,false,sf_connection)
+      addMessageToSnowflake(response,sid,decodedToken,false)
 
       // console.log('response: ' + response);
 
