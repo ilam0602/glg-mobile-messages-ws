@@ -5,7 +5,6 @@ const { verifyIdToken, createAddNewChatKey,getContactId } = require("./helper/fi
 const {
   getMessageHistorySnowflake,
   addMessageToSnowflake,
-  connectToSnowflake,
 } = require("./helper/snowflake.js");
 const {genai} = require('./helper/gemini.js');
 const snowflake = require('snowflake-sdk');
@@ -15,7 +14,7 @@ require("dotenv").config();
 const connected_clients = new Map();
 
 
-const wss = new WebSocket.Server({ port: 8080 });
+const wss = new WebSocket.Server({ port: 8082 });
 
 var sessions = new Map();
 
@@ -40,14 +39,24 @@ wss.on("connection", function connection(ws) {
   });
 
   async function startChat(ws, decodedToken) {
+      console.log('in start chat000000000');
     try {
-      newSessionNeeded = await needsNewSession(decodedToken);
+      console.log('in start chat');
+      var newSessionNeededRes = await needsNewSession(decodedToken);
+      newSessionNeeded = newSessionNeededRes[0];
       if (newSessionNeeded) {
         // Start a new session
         await startNewSession(ws, decodedToken);
+        await sleep(250);
+        const introMessage = 'Hello, My name is Paige. How can I help you today?';
+        //send intro message to snowflake
+        addMessageToSnowflake(introMessage,sid,decodedToken,false)
+        connected_clients.get(sid).send('From Slack: ' + introMessage);
       }
       else{
-        print('continuing session');
+        connected_clients.set(newSessionNeededRes[1], ws);
+        sid = newSessionNeededRes[1];
+        console.log('continuing session sid: ' + newSessionNeededRes[1]);
       }
     } catch (error) {
       console.error("Error in onConnect:", error);
@@ -83,6 +92,7 @@ wss.on("connection", function connection(ws) {
     const sidSub = "sid:";
     //handle sending history
     if (messageText.substring(0, sidSub.length) === sidSub) {
+      console.log('received sid');
       //extract sid
       sid = messageText.substring(sidSub.length, messageText.length);
       connected_clients.set(sid, ws);
@@ -107,13 +117,8 @@ wss.on("connection", function connection(ws) {
       }
     //start chat
     } else if (messageText.substring(0, 11) == "start_chat:") {
+      console.log('received start chat');
       await startChat(ws, decodedToken);
-      await sleep(250);
-      const introMessage = 'Hello, My name is Paige. How can I help you today?';
-      //send intro message to snowflake
-      addMessageToSnowflake(introMessage,sid,decodedToken,false)
-      connected_clients.get(sid).send('From Slack: ' + introMessage);
-
     } else {
       //add user message to snowflake
       addMessageToSnowflake(message,sid,decodedToken,true)
@@ -128,6 +133,7 @@ wss.on("connection", function connection(ws) {
       // console.log('response: ' + response);
 
       //send bot response to client
+      console.log('sid: ' + sid);
       connected_clients.get(sid).send('From Slack: ' + response);
     }
   }
