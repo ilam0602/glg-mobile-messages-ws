@@ -79,7 +79,11 @@ wss.on("connection", function connection(ws) {
       //set 
       connected_clients.set(sid, ws);
 
-      await connected_clients.get(sid).send(`Slack ms_ts: ${(Date.now()/1000).toFixed(0)}, ${sid}`);
+      // await connected_clients.get(sid).send(`Slack ms_ts: }, ${sid}`);
+      await connected_clients.get(sid).send(
+        `Kore Session ID: ${sid}`);
+      await connected_clients.get(sid).send(
+        `DATE: ${(Date.now()/1000).toFixed(0)}`);
     } catch (error) {
       console.error("Error during WebSocket handling: ", error);
       ws.send(JSON.stringify({ error: "An error occurred." + error }));
@@ -109,9 +113,9 @@ wss.on("connection", function connection(ws) {
         for(let i = 0 ; i < messageHistory.length; i++){
           console.log(messageHistory[i]);
           message = formatHistoryMessage(messageHistory[i]['sender'],messageHistory[i]['message']);
-          connected_clients.get(sid).send(message);
+          await connected_clients.get(sid).send(message);
         }
-        connected_clients.get(sid).send('HISTORY DONE:');
+        await connected_clients.get(sid).send('HISTORY DONE:');
       } catch (e) {
         console.error(`Error retrieving replies: ${e}`);
       }

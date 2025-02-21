@@ -10,9 +10,7 @@ async function needsNewSession(decodedToken) {
     }
 
     const mostRecentMessageID = activeChats[activeChats.length - 1];
-    console.log('most recent message id: ' + mostRecentMessageID);
     const mostRecentMessage =  (await getMessageHistorySnowflake(mostRecentMessageID))[0];
-    console.log('most recent message: ' + mostRecentMessage['timestamp'] + ' '+ mostRecentMessage['message']);
     
     if (!mostRecentMessage || !mostRecentMessage["timestamp"]) {
         console.log('no timestamp returning true');
@@ -21,8 +19,6 @@ async function needsNewSession(decodedToken) {
 
     const ts = new Date(mostRecentMessage["timestamp"]*1000); // Convert timestamp to Date object
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
-    console.log('timestamp111: ' + ts);
-    console.log('five muntes ago: ' + fiveMinutesAgo);
 
     return [ts < fiveMinutesAgo, mostRecentMessageID]; // Returns true if ts is older than 5 minutes
 }
