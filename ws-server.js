@@ -44,6 +44,11 @@ wss.on("connection", function connection(ws) {
       console.log('in start chat');
       var newSessionNeededRes = await needsNewSession(decodedToken);
       newSessionNeeded = newSessionNeededRes[0];
+      var uid = decodedToken.uid;
+
+      if(sessions.get(uid) == null){
+        newSessionNeeded = true;
+      }
       if (newSessionNeeded) {
         // Start a new session
         await startNewSession(ws, decodedToken);
