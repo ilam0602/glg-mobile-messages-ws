@@ -1,5 +1,5 @@
 const WebSocket = require("ws");
-const { startNewChat, sendMessageToGemini } = require("./helper/chat.js");
+const { startNewChat, sendMessageToGemini,continueChat } = require("./helper/chat.js");
 const { needsNewSession,formatHistoryMessage } = require("./helper/general.js");
 const { verifyIdToken, createAddNewChatKey,getContactId } = require("./helper/firebase.js");
 const {
@@ -46,9 +46,6 @@ wss.on("connection", function connection(ws) {
       newSessionNeeded = newSessionNeededRes[0];
       var uid = decodedToken.uid;
 
-      if(sessions.get(uid) == null){
-        newSessionNeeded = true;
-      }
       if (newSessionNeeded) {
         // Start a new session
         await startNewSession(ws, decodedToken);
@@ -59,13 +56,36 @@ wss.on("connection", function connection(ws) {
         connected_clients.get(sid).send('From Slack: ' + introMessage);
       }
       else{
-        connected_clients.set(newSessionNeededRes[1], ws);
-        sid = newSessionNeededRes[1];
+        let sessionId = newSessionNeededRes[1];
+        if(sessions.get(uid) == null){
+          await continueSession(ws, decodedToken,sessionId);
+        }else{
+          connected_clients.set(sessionId, ws);
+        }
         console.log('continuing session sid: ' + newSessionNeededRes[1]);
       }
     } catch (error) {
       console.error("Error in onConnect:", error);
       ws.send(JSON.stringify({ error: "An error occurred in onConnect." }));
+    }
+  }
+
+  async function continueSession(ws, decodedToken,sessionId) {
+    try {
+      //create new session from gemini
+      let contact_id = await getContactId(decodedToken);
+      let history = await getMessageHistorySnowflake(sessionId);
+      let newSession = await continueChat(genai, contact_id,sessionId,history);
+
+      //set sessions map with uid as key and session as value
+      sessions.set(decodedToken.uid, newSession.startChat(decodedToken));
+      sid = sessionId;
+
+      //set 
+      connected_clients.set(sid, ws);
+    } catch (error) {
+      console.error("Error during WebSocket handling: ", error);
+      ws.send(JSON.stringify({ error: "An error occurred." + error }));
     }
   }
 
