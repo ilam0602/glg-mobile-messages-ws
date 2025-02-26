@@ -132,9 +132,9 @@ wss.on("connection", function connection(ws) {
         //send message history to client
         console.log(messageHistory);
         connected_clients.get(sid).send(
-          `Kore Session ID: ${sid}`);
+          `HISTORY: Kore Session ID: ${sid}`);
         connected_clients.get(sid).send(
-          `DATE: ${messageHistory[0]['timestamp']}`);
+          `HISTORY: DATE: ${messageHistory[0]['timestamp']}`);
         
         for(let i = 0 ; i < messageHistory.length; i++){
           console.log(messageHistory[i]);
