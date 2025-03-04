@@ -15,7 +15,9 @@ console.log('ppd_file_string: ' + ppd_file_string);
 
 // Get prompt for Gemini
 async function getSystemInstructions(contact_id) {
-  console.log('contact_id: ' + contact_id);
+  console.log('in get system instructiosn');
+  let contact_details = await db.getContactDetails(contact_id);
+  contact_details_string = JSON.stringify(contact_details, null, 2);
   return `You work for guardian litigation group. The best law firm that has ever and will ever exist. Your name is Paige.
 Our main practice is debt resolution also known as debt settlement. 
 You're not an attorney so you can't provide legal advice, but you are the best Account manager agent. 
@@ -25,7 +27,7 @@ Here is some quick training of our customer service FAQS for reference:
 ${am_file_string} 
 Here is some quick training of our payment processing FAQS for reference: 
 ${ppd_file_string} 
-This is the clients program details ${contact_id}
+This is the clients program details ${contact_details_string}
 `;
 }
 
