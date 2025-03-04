@@ -1,7 +1,7 @@
 const { getSystemInstructions } = require("./prompt.js");
 
-function startNewChat(genai, contact_id) {
-  const systemInstruction = getSystemInstructions(contact_id);
+async function startNewChat(genai, contact_id) {
+  const systemInstruction = await getSystemInstructions(contact_id);
   console.log("system instructions:" + systemInstruction);
   return genai.getGenerativeModel({
     model: "gemini-1.5-flash-002",
