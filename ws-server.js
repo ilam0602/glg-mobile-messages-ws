@@ -153,6 +153,7 @@ wss.on("connection", function connection(ws) {
       //add user message to snowflake
       addMessageToSnowflake(message,sid,decodedToken,true)
       //send message to gemini
+      await sleep(1000);
       const response = await sendMessageToGemini(
         sessions.get(decodedToken.uid),
         messageText
