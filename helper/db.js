@@ -23,7 +23,7 @@ function loadJson(jsonFile) {
  * @param {string} [snowflakeInstance='encs'] - The key for which configuration to use.
  * @returns {Promise<Array<Object>>} A promise that resolves with the query result rows.
  */
-function snowflakeGetTable(sqlStatement, snowflakeInstance = 'encs') {
+async function snowflakeGetTable(sqlStatement, snowflakeInstance = 'encs') {
   // Convert instance to lowercase (to match configuration keys).
   const instance = snowflakeInstance.toLowerCase();
   const config = loadJson(CONFIG_FILE);

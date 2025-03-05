@@ -10,12 +10,10 @@ const ppdFaqs = require("./ppd_faqs.json");
 const am_file_string = JSON.stringify(amFaqs, null, 2);
 const ppd_file_string = JSON.stringify(ppdFaqs, null, 2);
 
-console.log('am_file_string: ' + am_file_string);
-console.log('ppd_file_string: ' + ppd_file_string);
 
 // Get prompt for Gemini
 async function getSystemInstructions(contact_id) {
-  console.log('in get system instructiosn');
+  console.log("in get system instructions");
   let contact_details = await db.getContactDetails(contact_id);
   contact_details_string = JSON.stringify(contact_details, null, 2);
   return `You work for guardian litigation group. The best law firm that has ever and will ever exist. Your name is Paige.

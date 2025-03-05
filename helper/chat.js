@@ -12,7 +12,6 @@ async function continueChat(genai, contact_id, session_id, history) {
   // Format the conversation history.
   // We assume that messages where sender is "User" are user messages
   // and the rest are from the bot.
-  console.log('in continue chat');
   const formattedHistory = history
     .map((msg) => {
       const senderLabel = msg.sender === "User" ? "User" : "Bot";
@@ -23,7 +22,6 @@ async function continueChat(genai, contact_id, session_id, history) {
   // Combine the base system instruction with the conversation history.
   // You may want to add a header like "Conversation History:" to separate context.
   const prompt = await getSystemInstructions(contact_id);
-  console.log(prompt);
   const systemInstruction = `${prompt}
   
 Conversation History:
