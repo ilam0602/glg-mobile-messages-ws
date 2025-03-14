@@ -1,12 +1,17 @@
 const { getSystemInstructions } = require("./prompt.js");
 
 async function startNewChat(genai, contact_id) {
-  const systemInstruction = await getSystemInstructions(contact_id);
-  console.log('in start chat');
-  return genai.getGenerativeModel({
-    model: "gemini-1.5-flash-002",
-    systemInstruction: systemInstruction,
-  });
+  const res = await getSystemInstructions(contact_id);
+  const systemInstruction = res["prompt"];
+  const name = res["name"];
+  return {
+    session:
+    genai.getGenerativeModel({
+      model: "gemini-1.5-flash-002",
+      systemInstruction: systemInstruction,
+    }),
+    name:name,
+  };
 }
 async function continueChat(genai, contact_id, session_id, history) {
   // Format the conversation history.
@@ -21,7 +26,8 @@ async function continueChat(genai, contact_id, session_id, history) {
 
   // Combine the base system instruction with the conversation history.
   // You may want to add a header like "Conversation History:" to separate context.
-  const prompt = await getSystemInstructions(contact_id);
+  const res = await getSystemInstructions(contact_id);
+  const prompt = res["prompt"];
   const systemInstruction = `${prompt}
   
 Conversation History:

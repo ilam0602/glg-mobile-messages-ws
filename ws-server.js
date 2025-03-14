@@ -58,11 +58,10 @@ wss.on("connection", function connection(ws) {
 
       if (newSessionNeeded) {
         // Start a new session
-        await startNewSession(ws, decodedToken);
-        const introMessage =
-          "Hello, My name is Paige. How can I help you today?";
+        const name = await startNewSession(ws, decodedToken);
+        await sleep(250);
+        const introMessage = `Hello ${name}, My name is Paige. How can I help you today?`;
         //send intro message to snowflake
-        await sleep(100);
         addMessageToSnowflake(introMessage, sid, decodedToken, false);
         connected_clients.get(sid).send("From Slack: " + introMessage);
         connected_clients.get(sid).send("ready: ");
@@ -111,7 +110,9 @@ wss.on("connection", function connection(ws) {
     try {
       //create new session from gemini
       let contact_id = await getContactId(decodedToken);
-      let newSession = await startNewChat(genai, contact_id);
+      let newSessionRes = await startNewChat(genai, contact_id);
+      let newSession = newSessionRes['session'];
+      let name = newSessionRes['name'];
 
       //set sessions map with uid as key and session as value
       sessions.set(decodedToken.uid, newSession.startChat(decodedToken));
@@ -123,13 +124,14 @@ wss.on("connection", function connection(ws) {
       connected_clients.set(sid, ws);
 
       await connected_clients.get(sid).send(`Kore Session ID: ${sid}`);
-      await sleep(100);
       await connected_clients
         .get(sid)
         .send(`DATE: ${(Date.now() / 1000).toFixed(0)}`);
+      return name;
     } catch (error) {
       console.error("Error during WebSocket handling: ", error);
       ws.send(JSON.stringify({ error: "An error occurred." + error }));
+      return "";
     }
   }
 

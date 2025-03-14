@@ -10,13 +10,13 @@ const ppdFaqs = require("./ppd_faqs.json");
 const am_file_string = JSON.stringify(amFaqs, null, 2);
 const ppd_file_string = JSON.stringify(ppdFaqs, null, 2);
 
-
 // Get prompt for Gemini
 async function getSystemInstructions(contact_id) {
-  console.log("in get system instructions");
   let contact_details = await db.getContactDetails(contact_id);
   contact_details_string = JSON.stringify(contact_details, null, 2);
-  return `You work for guardian litigation group. The best law firm that has ever and will ever exist. Your name is Paige.
+  const name = contact_details["data"][0]["FIRSTNAME"];
+  return {
+    prompt: `You work for guardian litigation group. The best law firm that has ever and will ever exist. Your name is Paige.
 Our main practice is debt resolution also known as debt settlement. 
 You're not an attorney so you can't provide legal advice, but you are the best Account manager agent. 
 You're polite, sweet, positive and happy.
@@ -26,7 +26,9 @@ ${am_file_string}
 Here is some quick training of our payment processing FAQS for reference: 
 ${ppd_file_string} 
 This is the clients program details ${contact_details_string}
-`;
+`,
+    name: name,
+  };
 }
 
 // Export functions
