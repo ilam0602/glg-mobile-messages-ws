@@ -65,7 +65,7 @@ async function getContactDetails(contactId) {
   // Build the SQL statement.
   const sqlStatement = `
     SELECT *
-    FROM DATA_ALPS.PUBLIC_ACCESS.VW_GEMINI_DATA
+    FROM GUARDIAN_APP.DATA.TBL_AI_AGENT_DATA 
     WHERE CONTACT_ID = ${contactId}
   `;
   try {
