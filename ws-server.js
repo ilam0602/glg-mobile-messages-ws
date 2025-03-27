@@ -55,6 +55,7 @@ wss.on("connection", function connection(ws) {
       var newSessionNeededRes = await needsNewSession(decodedToken);
       newSessionNeeded = newSessionNeededRes[0];
       var uid = decodedToken.uid;
+      var contact_id = await getContactId(decodedToken);
 
       if (newSessionNeeded) {
         // Start a new session
@@ -62,7 +63,7 @@ wss.on("connection", function connection(ws) {
         await sleep(250);
         const introMessage = `Hello ${name}, My name is Paige. How can I help you today?`;
         //send intro message to snowflake
-        addMessageToSnowflake(introMessage, sid, decodedToken, false);
+        addMessageToSnowflake(introMessage, sid, decodedToken, false,contact_id);
         connected_clients.get(sid).send("From Slack: " + introMessage);
         connected_clients.get(sid).send("ready: ");
       } else {
@@ -172,8 +173,9 @@ wss.on("connection", function connection(ws) {
       console.log("received start chat");
       await startChat(ws, decodedToken);
     } else {
+      var contact_id = await getContactId(decodedToken);
       //add user message to snowflake
-      addMessageToSnowflake(message, sid, decodedToken, true);
+      addMessageToSnowflake(message, sid, decodedToken, true,contact_id);
       await sleep(1000);
       //send message to gemini
       const response = await sendMessageToGemini(
@@ -181,7 +183,7 @@ wss.on("connection", function connection(ws) {
         messageText
       );
       //add bot message to snowflake
-      addMessageToSnowflake(response, sid, decodedToken, false);
+      addMessageToSnowflake(response, sid, decodedToken, false,contact_id);
 
       // console.log('response: ' + response);
 

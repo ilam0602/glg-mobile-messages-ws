@@ -82,17 +82,17 @@ async function getMessageHistorySnowflake(sessionId) {
  * @param {boolean} isUser - Indicates whether the message is from the user.
  * @returns {Promise<void>}
  */
-async function addMessageToSnowflake(message, sessionId, decodedToken, isUser) {
+async function addMessageToSnowflake(message, sessionId, decodedToken, isUser,contact_id) {
   // Determine sender based on the message source
   const sender = isUser ? "User" : "Kore Bot";
   const timestamp = Math.floor(Date.now() / 1000);
 
   const sqlText = `
-    INSERT INTO DATA_ALPS.DATA_VAULT.TBL_MOBILE_CHAT_HISTORY (SESSION_ID, MESSAGE, TIMESTAMP, SENDER)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO DATA_ALPS.DATA_VAULT.TBL_MOBILE_CHAT_HISTORY (SESSION_ID, MESSAGE, TIMESTAMP, SENDER, CONTACT_ID)
+    VALUES (?, ?, ?, ?, ?)
   `;
   console.log("adding message to snowflake: " + message);
-  await connectAndExecute(sqlText, [sessionId, message, timestamp, sender]);
+  await connectAndExecute(sqlText, [sessionId, message, timestamp, sender,contact_id]);
 }
 
 module.exports = { getMessageHistorySnowflake, addMessageToSnowflake };
