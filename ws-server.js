@@ -87,7 +87,7 @@ wss.on("connection", function connection(ws) {
     try {
       //create new session from gemini
       let contact_id = await getContactId(decodedToken);
-      let history = await getMessageHistorySnowflake(sessionId);
+      let history = await getMessageHistorySnowflake(sessionId,decodedToken);
       let newSession = await continueChat(
         genai,
         contact_id,
@@ -148,7 +148,10 @@ wss.on("connection", function connection(ws) {
       connected_clients.set(sid, ws);
       try {
         //get message history from snow flake
-        const messageHistory = await getMessageHistorySnowflake(sid);
+        const messageHistory = await getMessageHistorySnowflake(sid,decodedToken);
+        if(messageHistory == null){
+          return;
+        }
         //send message history to client
         console.log(messageHistory);
         connected_clients.get(sid).send(`HISTORY: Kore Session ID: ${sid}`);

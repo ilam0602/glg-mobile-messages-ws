@@ -1,5 +1,9 @@
 require("dotenv").config();
 const snowflake = require("snowflake-sdk");
+const {
+  getContactId,
+} = require("./firebase.js");
+const { get } = require("request");
 
 /**
  * Creates a new Snowflake connection using your environment variables.
@@ -57,15 +61,20 @@ function connectAndExecute(sqlText, binds = []) {
  * @param {string} sessionId - The session identifier.
  * @returns {Promise<Array>} - Resolves with an array of message objects.
  */
-async function getMessageHistorySnowflake(sessionId) {
+async function getMessageHistorySnowflake(sessionId,token) {
   const sqlText = `
-    SELECT MESSAGE, TIMESTAMP, SENDER
+    SELECT MESSAGE, TIMESTAMP, SENDER, CONTACT_ID
     FROM DATA_ALPS.DATA_VAULT.TBL_MOBILE_CHAT_HISTORY
     WHERE SESSION_ID = ?
     ORDER BY TIMESTAMP ASC
   `;
   const rows = await connectAndExecute(sqlText, [sessionId]);
-
+  const contactIdFb = await getContactId(token);
+  const contactIdSf = rows[0]['CONTACT_ID'];
+  if(contactIdFb != contactIdSf){
+    console.log("contact id mismatch");
+    return null;
+  }
   return rows.map((row) => ({
     message: row.MESSAGE,
     timestamp: row.TIMESTAMP,
