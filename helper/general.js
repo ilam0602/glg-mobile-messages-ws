@@ -10,7 +10,7 @@ async function needsNewSession(decodedToken) {
     }
 
     const mostRecentMessageID = activeChats[activeChats.length - 1];
-    const mostRecentMessage =  (await getMessageHistorySnowflake(mostRecentMessageID))[0];
+    const mostRecentMessage =  (await getMessageHistorySnowflake(mostRecentMessageID,decodedToken))[0];
     
     if (!mostRecentMessage || !mostRecentMessage["timestamp"]) {
         console.log('no timestamp returning true');

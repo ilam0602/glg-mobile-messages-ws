@@ -24,7 +24,7 @@ require("dotenv").config();
 
 const connected_clients = new Map();
 
-const wss = new WebSocket.Server({ port: 8082 });
+const wss = new WebSocket.Server({ port: 8080 });
 
 var sessions = new Map();
 

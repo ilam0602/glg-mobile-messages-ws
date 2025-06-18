@@ -69,10 +69,11 @@ async function getMessageHistorySnowflake(sessionId,token) {
     ORDER BY TIMESTAMP ASC
   `;
   const rows = await connectAndExecute(sqlText, [sessionId]);
+  console.log(`in get message history token: ${token}`);
   const contactIdFb = await getContactId(token);
   const contactIdSf = rows[0]['CONTACT_ID'];
   if(contactIdFb != contactIdSf){
-    console.log("contact id mismatch");
+    console.log(`contact id mismatch ${contactIdFb} != ${contactIdSf}`);
     return null;
   }
   return rows.map((row) => ({
