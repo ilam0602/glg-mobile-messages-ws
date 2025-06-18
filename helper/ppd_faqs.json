@@ -1,0 +1,9 @@
+{
+"payment_plan_transaction_types_and_aliases": {
+        "ACH Client Debit": "Other aliases are deposits, debits, debit, or drafts",
+        "ACH Credit Fee": "Other aliases are fees, or earned performance fee",
+        "Settlement Payment": "Other aliases are settlement pays, or payments to creditor, creditor pays",
+        "DPG Custodial Fee": "Other aliases are dpg fee, custodial fee, bank fee",
+        "Disbursement Fee": "Other aliases are dpg settlement fee, settlement pay fee"
+    }
+}
