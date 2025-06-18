@@ -8,6 +8,12 @@ const { get } = require("request");
 /**
  * Creates a new Snowflake connection using your environment variables.
  */
+snowflake.configure({
+  logLevel:            'OFF',     // no logs
+  logFilePath:         'STDOUT',  // prevents creation of snowflake.log
+  additionalLogToConsole: false   // don’t echo even to stdout
+});
+
 function createNewConnection() {
   return snowflake.createConnection({
     account: process.env.SNOWFLAKE_ACCOUNT,
@@ -69,7 +75,6 @@ async function getMessageHistorySnowflake(sessionId,token) {
     ORDER BY TIMESTAMP ASC
   `;
   const rows = await connectAndExecute(sqlText, [sessionId]);
-  console.log(`in get message history token: ${token}`);
   const contactIdFb = await getContactId(token);
   const contactIdSf = rows[0]['CONTACT_ID'];
   if(contactIdFb != contactIdSf){
